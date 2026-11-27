@@ -1,0 +1,130 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Cuenta SmartEK63",
+        "description": "Inicia sesión con la misma cuenta que usas en la app SmartEK63. La contraseña no se guarda.",
+        "data": {
+          "email": "Correo electrónico",
+          "password": "Contraseña"
+        }
+      },
+      "heaters": {
+        "title": "Elige las estufas",
+        "data": {
+          "heaters": "Estufas"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Volver a autenticar SmartEK63",
+        "description": "La sesión de {email} ha caducado. Introduce de nuevo la contraseña.",
+        "data": {
+          "password": "Contraseña"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Correo o contraseña incorrectos.",
+      "cannot_connect": "No se puede conectar con la nube de SmartEK63.",
+      "no_heater_selected": "Elige al menos una estufa.",
+      "unknown": "Error inesperado."
+    },
+    "abort": {
+      "already_configured": "Esta cuenta ya está configurada.",
+      "no_heaters": "La cuenta no tiene estufas.",
+      "reauth_successful": "Autenticación renovada.",
+      "wrong_account": "Es una cuenta distinta de la configurada."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de SmartEK63",
+        "data": {
+          "scan_interval": "Intervalo de sondeo",
+          "min_toggle_interval": "Tiempo mínimo entre encendido y apagado"
+        },
+        "data_description": {
+          "scan_interval": "Segundos entre lecturas de la nube (mínimo 60).",
+          "min_toggle_interval": "Minutos. Protege los ciclos de arranque y limpieza. 0 desactiva la protección."
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "stove": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "auto": "Automático",
+              "manual": "Manual"
+            }
+          }
+        }
+      }
+    },
+    "switch": {
+      "relax": {
+        "name": "Relax"
+      },
+      "standby": {
+        "name": "Standby"
+      }
+    },
+    "number": {
+      "fan_power": {
+        "name": "Velocidad ventilador 1"
+      }
+    },
+    "sensor": {
+      "phase": {
+        "name": "Fase",
+        "state": {
+          "off": "Apagada",
+          "ignition": "Encendiendo",
+          "heating": "Calentando",
+          "standby": "En espera",
+          "shutdown": "Apagándose",
+          "cleaning": "Limpieza",
+          "alarm": "Alarma",
+          "unknown": "Desconocida"
+        }
+      },
+      "status_description": {
+        "name": "Estado de la estufa"
+      },
+      "status": {
+        "name": "Código de estado"
+      },
+      "room_temperature": {
+        "name": "Temperatura ambiente"
+      },
+      "power_level": {
+        "name": "Nivel de potencia"
+      },
+      "last_update": {
+        "name": "Última actualización en la nube"
+      },
+      "fan_level": {
+        "name": "Nivel ventilador {fan}"
+      }
+    },
+    "binary_sensor": {
+      "scheduling": {
+        "name": "Programación activa"
+      }
+    }
+  },
+  "exceptions": {
+    "toggle_too_soon": {
+      "message": "La estufa se encendió o apagó hace poco. Espera {minutes} min antes de volver a intentarlo."
+    },
+    "command_failed": {
+      "message": "La estufa no aceptó el comando: {error}"
+    },
+    "auth_failed": {
+      "message": "La sesión de SmartEK63 ha caducado. Vuelve a autenticar la integración."
+    }
+  }
+}

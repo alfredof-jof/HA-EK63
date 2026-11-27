@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estufa EK63</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f4f1; --card: #ffffff; --text: #1f1d1a; --muted: #6f6a63; --line: #e6e1da;
+    --fire: #e4572e; --warm: #f3a712; --cool: #2e86ab; --ok: #3a9d5d; --bad: #c0392b; --grey: #9a958e;
+    --chip: #f1ede7;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #161514; --card: #201f1d; --text: #ece8e2; --muted: #a29d95; --line: #34312d;
+      --fire: #ff7148; --warm: #ffc14d; --cool: #5fb3d6; --ok: #5cc27f; --bad: #ff6b5b; --grey: #7d7871;
+      --chip: #2a2826;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1280px; margin: 0 auto; padding: 20px 16px 40px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-bottom: 18px; }
+  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 12px; font-weight: 600; }
+  .meta { color: var(--muted); font-size: 13px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .grid { display: grid; gap: 14px; }
+  .tiles { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); margin-bottom: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; min-width: 0; }
+  .tile .label { color: var(--muted); font-size: 12.5px; }
+  .tile .value { font-size: 26px; font-weight: 650; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .tile .sub { color: var(--muted); font-size: 12.5px; margin-top: 2px; min-height: 1.2em; }
+  .hero { grid-column: span 2; display: flex; align-items: center; gap: 16px; }
+  .hero .badge { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; font-size: 28px; flex: none; }
+  .two { grid-template-columns: 2fr 1fr; }
+  .charts { grid-template-columns: 1fr 1fr; }
+  .chartbox { position: relative; height: 260px; }
+  .toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .seg { display: inline-flex; background: var(--chip); border-radius: 10px; padding: 3px; }
+  .seg button { border: 0; background: transparent; color: var(--muted); padding: 6px 12px; border-radius: 8px; cursor: pointer; font: inherit; font-size: 13px; }
+  .seg button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: 0; }
+  .scroll { max-height: 360px; overflow: auto; }
+  .chip { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--chip); font-size: 12px; white-space: nowrap; }
+  .new { background: color-mix(in srgb, var(--warm) 25%, transparent); }
+  code, pre { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; }
+  pre { margin: 0; white-space: pre-wrap; word-break: break-all; color: var(--muted); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  .err { color: var(--bad); }
+  .muted { color: var(--muted); }
+  @media (max-width: 900px) { .two, .charts { grid-template-columns: 1fr; } }
+  @media (max-width: 420px) { .hero { grid-column: span 1; } .tile .value { font-size: 22px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1 id="title">Estufa EK63</h1>
+    <div class="meta">
+      <span id="online"><span class="dot" style="background:var(--grey)"></span>Cargando…</span>
+      <span id="updated"></span>
+      <span id="pollinfo"></span>
+    </div>
+  </header>
+
+  <section class="grid tiles" id="tiles"></section>
+
+  <div class="toolbar">
+    <h2 style="margin:0">Evolución</h2>
+    <div class="seg" id="range">
+      <button data-h="1">1 h</button><button data-h="6">6 h</button>
+      <button data-h="24" class="on">24 h</button><button data-h="168">7 días</button>
+    </div>
+  </div>
+  <section class="grid charts" style="margin-bottom:14px">
+    <div class="card"><h2>Temperatura ambiente y consigna (°C)</h2><div class="chartbox"><canvas id="cTemp"></canvas></div></div>
+    <div class="card"><h2>Fase de funcionamiento</h2><div class="chartbox"><canvas id="cPhase"></canvas></div></div>
+    <div class="card"><h2>Potencia y ventiladores</h2><div class="chartbox"><canvas id="cPower"></canvas></div></div>
+    <div class="card"><h2>Código de estado</h2><div class="chartbox"><canvas id="cCode"></canvas></div></div>
+  </section>
+
+  <section class="grid two">
+    <div class="card">
+      <h2>Registro de cambios</h2>
+      <div class="scroll"><table><thead><tr><th>Hora</th><th>Campo</th><th>Antes</th><th>Ahora</th></tr></thead><tbody id="changes"></tbody></table></div>
+    </div>
+    <div class="card">
+      <h2>Códigos de estado vistos</h2>
+      <p class="muted" style="margin:0 0 10px;font-size:13px">Objetivo: verlos todos (apagada, apagándose, limpieza, standby, alarma) antes de cerrar la integración de HA.</p>
+      <table><thead><tr><th>Código</th><th>Descripción</th><th>Fase</th><th>Veces</th></tr></thead><tbody id="codes"></tbody></table>
+      <details style="margin-top:14px"><summary>JSON completo de la última lectura</summary><pre id="raw"></pre></details>
+    </div>
+  </section>
+</main>
+
+<script>
+// --- Misma lógica que custom_components/smartek63/coordinator.py ---
+const PHASE_KEYWORDS = [["allarm","alarm"],["alarm","alarm"],["errore","alarm"],["accensione","ignition"],["warmup","ignition"],
+  ["potenza","heating"],["spegnimento","shutdown"],["pulizia","cleaning"],["stand","standby"],["attesa","standby"],["spento","off"],["off","off"]];
+const ON_STATUSES = new Set([1,4,5,10,11,12,13,14,15]);
+const PHASES = {
+  off:{label:"Apagada",icon:"⏻",color:"--grey",lvl:0}, ignition:{label:"Encendiendo",icon:"🔥",color:"--warm",lvl:2},
+  heating:{label:"Calentando",icon:"🔥",color:"--fire",lvl:3}, standby:{label:"En espera",icon:"⏸",color:"--cool",lvl:1},
+  shutdown:{label:"Apagándose",icon:"⤵",color:"--cool",lvl:1}, cleaning:{label:"Limpieza",icon:"🧹",color:"--cool",lvl:1},
+  alarm:{label:"Alarma",icon:"⚠",color:"--bad",lvl:4}, unknown:{label:"Desconocida",icon:"?",color:"--grey",lvl:0},
+};
+function phase(d){
+  const desc = String(d?.statusDescription ?? "").toLowerCase();
+  for (const [k,v] of PHASE_KEYWORDS) if (desc.includes(k)) return v;
+  const c = Number(d?.status);
+  if (c === 0) return "off";
+  if (ON_STATUSES.has(c)) return "heating";
+  return "unknown";
+}
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmtTime = iso => new Date(iso).toLocaleTimeString("es-ES",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+const fmtDT = ms => { const d = new Date(ms); return d.toLocaleString("es-ES",{weekday: rangeH>24?"short":undefined, hour:"2-digit",minute:"2-digit"}); };
+const yesno = v => v === true ? "Sí" : v === false ? "No" : "—";
+const esc = s => String(s ?? "—").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+
+// --- Estado del cliente ---
+let since = "", history = [], changes = [], codes = {}, latest = null, heaterName = "", rangeH = 24;
+const charts = {};
+
+function tile(label, value, sub="", extra="") {
+  return `<div class="card tile ${extra}"><div class="label">${label}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+}
+
+function renderTiles(){
+  if (!latest) return;
+  const p = PHASES[phase(latest)];
+  const t = latest.roomTemperature, c = latest.temperature;
+  const diff = (typeof t === "number" && typeof c === "number") ? c - t : null;
+  const fans = Number(latest.fansNumber || 1);
+  let fanTxt = []; for (let i=1;i<=Math.min(fans,3);i++) fanTxt.push(latest[`fan${i}Power`] ?? "—");
+  document.getElementById("tiles").innerHTML =
+    `<div class="card hero"><div class="badge" style="background:color-mix(in srgb, var(${p.color}) 18%, transparent);color:var(${p.color})">${p.icon}</div>
+      <div><div class="label muted" style="font-size:12.5px">Fase</div><div style="font-size:26px;font-weight:650">${p.label}</div>
+      <div class="muted" style="font-size:13px">${esc(latest.statusDescription)} · código ${esc(latest.status)}</div></div></div>` +
+    tile("Temperatura ambiente", `${t ?? "—"} °C`, diff === null ? "" : diff > 0 ? `faltan ${diff.toFixed(1)} °C` : `${(-diff).toFixed(1)} °C por encima`) +
+    tile("Consigna", `${c ?? "—"} °C`, `modo ${esc(latest.mode)}`) +
+    tile("Nivel de potencia", latest.power ?? "—", "campo power") +
+    tile(`Ventiladores (${fans})`, fanTxt.join(" · "), "fan1Power · fan2Power") +
+    tile("Relax", yesno(latest.relaxMode), "") +
+    tile("Standby", yesno(latest.standbyMode), "") +
+    tile("Programación", yesno(latest.scheduling?.active), "cronotermostato") +
+    tile("Cóclea continua", yesno(latest.continuousCochleaMode), "continuousCochleaMode");
+}
+
+function baseOptions(yOpts = {}) {
+  const grid = css("--line"), muted = css("--muted");
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false, parsing: false, normalized: true,
+    interaction: { mode: "index", intersect: false },
+    plugins: { legend: { labels: { color: muted, boxWidth: 12, usePointStyle: true } },
+      tooltip: { callbacks: { title: items => items.length ? fmtDT(items[0].parsed.x) : "" } } },
+    scales: {
+      x: { type: "linear", ticks: { color: muted, maxTicksLimit: 7, callback: v => fmtDT(v) }, grid: { color: grid } },
+      y: { ticks: { color: muted }, grid: { color: grid }, ...yOpts },
+    },
+    elements: { point: { radius: 0, hitRadius: 6 }, line: { borderWidth: 2 } },
+  };
+}
+function ds(label, color, data, extra = {}) {
+  return { label, data, borderColor: css(color), backgroundColor: css(color), ...extra };
+}
+
+function renderCharts(){
+  const cutoff = Date.now() - rangeH * 3600e3;
+  const rows = history.filter(h => Date.parse(h.ts) >= cutoff);
+  const pts = key => rows.filter(r => r[key] !== null && r[key] !== undefined).map(r => ({x: Date.parse(r.ts), y: Number(r[key])}));
+  const step = { stepped: true };
+  const sets = {
+    cTemp: { datasets: [ ds("Ambiente", "--fire", pts("roomTemperature"), {tension: .25}), ds("Consigna", "--cool", pts("temperature"), {...step, borderDash: [6,4]}) ], y: {} },
+    cPhase: { datasets: [ ds("Fase", "--warm", rows.map(r => ({x: Date.parse(r.ts), y: PHASES[phase(r)].lvl})), {...step, fill: true, backgroundColor: "color-mix(in srgb, " + css("--warm") + " 25%, transparent)"}) ],
+      y: { min: 0, max: 4, ticks: { color: css("--muted"), stepSize: 1, callback: v => ["Apagada","Espera/limpieza","Encendiendo","Calentando","Alarma"][v] ?? "" } } },
+    cPower: { datasets: [ ds("Potencia", "--fire", pts("power"), step), ds("Ventilador 1", "--cool", pts("fan1Power"), step), ds("Ventilador 2", "--ok", pts("fan2Power"), {...step, borderDash: [4,3]}) ],
+      y: { min: 0, suggestedMax: 5, ticks: { color: css("--muted"), stepSize: 1 } } },
+    cCode: { datasets: [ ds("status", "--grey", pts("status"), step) ], y: { ticks: { color: css("--muted"), stepSize: 1 } } },
+  };
+  for (const [id, cfg] of Object.entries(sets)) {
+    if (!charts[id]) {
+      charts[id] = new Chart(document.getElementById(id), { type: "line", data: { datasets: cfg.datasets }, options: baseOptions(cfg.y) });
+      if (id === "cPhase" || id === "cCode") charts[id].options.plugins.legend.display = false;
+    } else {
+      charts[id].data.datasets.forEach((d, i) => d.data = cfg.datasets[i].data);
+    }
+    charts[id].options.scales.x.min = rows.length ? Math.max(cutoff, Date.parse(rows[0].ts)) : cutoff;
+    charts[id].options.scales.x.max = Date.now();
+    charts[id].update("none");
+  }
+}
+
+function renderTables(){
+  const rows = changes.slice(-300).reverse().map(c =>
+    `<tr><td>${fmtTime(c.ts)}</td><td><code>${esc(c.key)}</code></td><td class="muted">${esc(JSON.stringify(c.old))}</td><td>${esc(JSON.stringify(c.new))}</td></tr>`);
+  document.getElementById("changes").innerHTML = rows.join("") || `<tr><td colspan="4" class="muted">Sin cambios todavía.</td></tr>`;
+  const codeRows = Object.entries(codes).sort((a,b) => Number(a[0]) - Number(b[0])).map(([code, e]) => {
+    const ph = phase({status: Number(code), statusDescription: e.description});
+    return `<tr><td><b>${esc(code)}</b></td><td>${esc(e.description)}</td><td><span class="chip ${ph === "unknown" ? "new" : ""}">${PHASES[ph].label}</span></td><td>${e.count}</td></tr>`;
+  });
+  document.getElementById("codes").innerHTML = codeRows.join("");
+  document.getElementById("raw").textContent = latest ? JSON.stringify(latest, null, 2) : "";
+}
+
+function renderHeader(poll){
+  document.getElementById("title").textContent = heaterName ? `Estufa ${heaterName}` : "Estufa EK63";
+  const on = latest?.online;
+  document.getElementById("online").innerHTML = `<span class="dot" style="background:var(${on ? "--ok" : "--bad"})"></span>${on ? "Online" : "Offline"}`;
+  document.getElementById("updated").textContent = latest?.lastUpdate ? `Nube: ${fmtTime(latest.lastUpdate)}` : "";
+  const p = document.getElementById("pollinfo");
+  p.className = poll.error ? "err" : "";
+  p.textContent = poll.error ? `Error de lectura: ${poll.error}` : `Lectura cada ${poll.interval} s · ${history.length} registros`;
+}
+
+async function refresh(){
+  try {
+    const res = await fetch(`/api/state?since=${encodeURIComponent(since)}`, {cache: "no-store"});
+    const state = await res.json();
+    const h = state.heaters[0];
+    if (!h) return;
+    heaterName = h.name; latest = h.latest || latest; codes = h.codes;
+    history.push(...h.history); changes.push(...h.changes);
+    const lastTs = [h.history.at(-1)?.ts, h.changes.at(-1)?.ts, since].filter(Boolean).sort().at(-1);
+    since = lastTs || since;
+    const cutoff = Date.now() - 7*24*3600e3;
+    history = history.filter(r => Date.parse(r.ts) >= cutoff);
+    renderHeader(state.poll); renderTiles(); renderCharts(); renderTables();
+  } catch (e) {
+    const p = document.getElementById("pollinfo"); p.className = "err"; p.textContent = "Sin conexión con monitor.py";
+  }
+}
+
+document.getElementById("range").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  document.querySelectorAll("#range button").forEach(x => x.classList.toggle("on", x === b));
+  rangeH = Number(b.dataset.h); renderCharts();
+});
+refresh(); setInterval(refresh, 10000);
+</script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "SmartEK63 account",
+        "description": "Sign in with the same account you use in the SmartEK63 app. The password is not stored.",
+        "data": {
+          "email": "Email",
+          "password": "Password"
+        }
+      },
+      "heaters": {
+        "title": "Select stoves",
+        "data": {
+          "heaters": "Stoves"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Re-authenticate SmartEK63",
+        "description": "The session for {email} has expired. Enter the password again.",
+        "data": {
+          "password": "Password"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid email or password.",
+      "cannot_connect": "Unable to connect to the SmartEK63 cloud.",
+      "no_heater_selected": "Select at least one stove.",
+      "unknown": "Unexpected error."
+    },
+    "abort": {
+      "already_configured": "This account is already configured.",
+      "no_heaters": "The account has no stoves.",
+      "reauth_successful": "Re-authentication successful.",
+      "wrong_account": "This is a different account from the configured one."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "SmartEK63 options",
+        "data": {
+          "scan_interval": "Polling interval",
+          "min_toggle_interval": "Minimum time between on/off"
+        },
+        "data_description": {
+          "scan_interval": "Seconds between cloud reads (minimum 60).",
+          "min_toggle_interval": "Minutes. Protects ignition and cleaning cycles. 0 disables the protection."
+        }
+      }
+    }
+  },
+  "entity": {
+    "climate": {
+      "stove": {
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "auto": "Automatic",
+              "manual": "Manual"
+            }
+          }
+        }
+      }
+    },
+    "switch": {
+      "relax": {
+        "name": "Relax"
+      },
+      "standby": {
+        "name": "Standby"
+      }
+    },
+    "number": {
+      "fan_power": {
+        "name": "Fan 1 speed"
+      }
+    },
+    "sensor": {
+      "phase": {
+        "name": "Phase",
+        "state": {
+          "off": "Off",
+          "ignition": "Ignition",
+          "heating": "Heating",
+          "standby": "Standby",
+          "shutdown": "Shutting down",
+          "cleaning": "Cleaning",
+          "alarm": "Alarm",
+          "unknown": "Unknown"
+        }
+      },
+      "status_description": {
+        "name": "Stove status"
+      },
+      "status": {
+        "name": "Status code"
+      },
+      "room_temperature": {
+        "name": "Room temperature"
+      },
+      "power_level": {
+        "name": "Power level"
+      },
+      "last_update": {
+        "name": "Last cloud update"
+      },
+      "fan_level": {
+        "name": "Fan {fan} level"
+      }
+    },
+    "binary_sensor": {
+      "scheduling": {
+        "name": "Schedule active"
+      }
+    }
+  },
+  "exceptions": {
+    "toggle_too_soon": {
+      "message": "The stove was switched on/off recently. Wait {minutes} min before trying again."
+    },
+    "command_failed": {
+      "message": "The stove did not accept the command: {error}"
+    },
+    "auth_failed": {
+      "message": "The SmartEK63 session has expired. Re-authenticate the integration."
+    }
+  }
+}

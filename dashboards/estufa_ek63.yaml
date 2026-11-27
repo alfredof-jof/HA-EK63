@@ -1,0 +1,163 @@
+# Panel de seguimiento de la estufa EK63 para Home Assistant.
+# Solo usa tarjetas nativas (nada de HACS): ligero para la Raspberry Pi 3.
+#
+# Instalación: Ajustes > Paneles > Añadir panel > "Nuevo panel desde cero"
+#   > abrir el panel > lápiz (editar) > menú ⋮ > "Editor de configuración en bruto"
+#   > pegar este fichero completo > Guardar.
+#
+# Los entity_id asumen HA en español y la estufa con nombre "EK63-C7F790".
+# Si los tuyos son distintos, busca y reemplaza "ek63_c7f790".
+
+title: Estufa
+views:
+  - title: Estufa EK63
+    path: estufa
+    icon: mdi:fireplace
+    type: sections
+    max_columns: 3
+    sections:
+      # ------------------------------------------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Control
+            icon: mdi:fire
+          - type: thermostat
+            entity: climate.ek63_c7f790
+            features:
+              - type: climate-hvac-modes
+                hvac_modes: ["off", "heat"]
+              - type: climate-preset-modes
+                style: dropdown
+          - type: tile
+            entity: switch.ek63_c7f790_relax
+            icon: mdi:sofa
+            features:
+              - type: toggle
+            grid_options: { columns: 6 }
+          - type: tile
+            entity: switch.ek63_c7f790_standby
+            icon: mdi:power-sleep
+            features:
+              - type: toggle
+            grid_options: { columns: 6 }
+
+      # ------------------------------------------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Estado actual
+            icon: mdi:information-outline
+          - type: tile
+            entity: sensor.ek63_c7f790_fase
+            icon: mdi:fire-circle
+            grid_options: { columns: 12 }
+          - type: tile
+            entity: sensor.ek63_c7f790_estado_de_la_estufa
+            icon: mdi:message-text-outline
+            grid_options: { columns: 12 }
+          - type: tile
+            entity: sensor.ek63_c7f790_temperatura_ambiente
+            grid_options: { columns: 6 }
+          - type: tile
+            entity: sensor.ek63_c7f790_nivel_de_potencia
+            icon: mdi:speedometer
+            grid_options: { columns: 6 }
+          - type: tile
+            entity: sensor.ek63_c7f790_nivel_ventilador_1
+            icon: mdi:fan
+            grid_options: { columns: 6 }
+          - type: tile
+            entity: sensor.ek63_c7f790_nivel_ventilador_2
+            icon: mdi:fan
+            grid_options: { columns: 6 }
+          - type: tile
+            entity: binary_sensor.ek63_c7f790_conectividad
+            grid_options: { columns: 6 }
+          - type: tile
+            entity: binary_sensor.ek63_c7f790_programacion_activa
+            icon: mdi:calendar-clock
+            grid_options: { columns: 6 }
+          - type: markdown
+            content: >-
+              {% set t = states('sensor.ek63_c7f790_temperatura_ambiente') | float(0) %}
+              {% set c = state_attr('climate.ek63_c7f790', 'temperature') | float(0) %}
+              {% if is_state('binary_sensor.ek63_c7f790_conectividad', 'off') %}
+              ⚠️ **La estufa no está conectada a la nube.**
+              {% elif is_state('sensor.ek63_c7f790_fase', 'alarm') %}
+              🚨 **Alarma:** {{ states('sensor.ek63_c7f790_estado_de_la_estufa') }}
+              {% elif t and c %}
+              {{ 'Faltan' if t < c else 'Sobran' }} **{{ (c - t) | abs | round(1) }} °C**
+              para la consigna de {{ c | int }} °C.
+              {% endif %}
+              Última lectura de la nube:
+              {{ as_timestamp(states('sensor.ek63_c7f790_ultima_actualizacion_en_la_nube'), 0)
+                 | timestamp_custom('%H:%M:%S') }}
+
+      # ------------------------------------------------------------------
+      - type: grid
+        column_span: 1
+        cards:
+          - type: heading
+            heading: Evolución
+            icon: mdi:chart-line
+          - type: history-graph
+            title: Temperatura y consigna (24 h)
+            hours_to_show: 24
+            entities:
+              - entity: climate.ek63_c7f790
+                name: Estufa
+          - type: history-graph
+            title: Fases de funcionamiento (24 h)
+            hours_to_show: 24
+            entities:
+              - entity: sensor.ek63_c7f790_fase
+                name: Fase
+              - entity: switch.ek63_c7f790_relax
+                name: Relax
+              - entity: switch.ek63_c7f790_standby
+                name: Standby
+              - entity: binary_sensor.ek63_c7f790_conectividad
+                name: Online
+          - type: history-graph
+            title: Potencia y ventiladores (24 h)
+            hours_to_show: 24
+            entities:
+              - entity: sensor.ek63_c7f790_nivel_de_potencia
+                name: Potencia
+              - entity: sensor.ek63_c7f790_nivel_ventilador_1
+                name: Ventilador 1
+              - entity: sensor.ek63_c7f790_nivel_ventilador_2
+                name: Ventilador 2
+          - type: statistics-graph
+            title: Temperatura ambiente (7 días)
+            entities:
+              - sensor.ek63_c7f790_temperatura_ambiente
+            days_to_show: 7
+            period: hour
+            stat_types: [mean, min, max]
+            chart_type: line
+
+      # ------------------------------------------------------------------
+      - type: grid
+        cards:
+          - type: heading
+            heading: Registro
+            icon: mdi:format-list-bulleted
+          - type: logbook
+            hours_to_show: 48
+            target:
+              entity_id:
+                - climate.ek63_c7f790
+                - sensor.ek63_c7f790_fase
+                - sensor.ek63_c7f790_estado_de_la_estufa
+                - binary_sensor.ek63_c7f790_conectividad
+          - type: entities
+            title: Diagnóstico
+            state_color: true
+            entities:
+              - entity: sensor.ek63_c7f790_codigo_de_estado
+                name: Código de estado
+              - entity: sensor.ek63_c7f790_ultima_actualizacion_en_la_nube
+                name: Última actualización
+                format: relative

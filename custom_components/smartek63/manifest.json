@@ -1,0 +1,14 @@
+{
+  "domain": "smartek63",
+  "name": "SmartEK63 (Edilkamin EK63)",
+  "codeowners": ["@alfredof-jof"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/alfredof-jof/HA-EK63",
+  "integration_type": "hub",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/alfredof-jof/HA-EK63/issues",
+  "loggers": ["custom_components.smartek63"],
+  "requirements": ["pycognito>=2024.5.1"],
+  "version": "0.1.0"
+}
