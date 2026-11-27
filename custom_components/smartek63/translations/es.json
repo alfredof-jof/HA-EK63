@@ -86,6 +86,7 @@
           "heating": "Calentando",
           "standby": "En espera",
           "shutdown": "Apagándose",
+          "cooling": "Enfriando",
           "cleaning": "Limpieza",
           "alarm": "Alarma",
           "unknown": "Desconocida"
@@ -125,6 +126,9 @@
     },
     "auth_failed": {
       "message": "La sesión de SmartEK63 ha caducado. Vuelve a autenticar la integración."
+    },
+    "stove_busy": {
+      "message": "La estufa se está apagando o enfriando. Espera a que termine antes de encenderla."
     }
   }
 }

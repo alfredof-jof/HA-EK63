@@ -14,7 +14,7 @@ Por cada estufa, un dispositivo con:
 | Relax | `switch` | |
 | Standby | `switch` | |
 | Potencia del ventilador | `number` | **Deshabilitada por defecto** hasta confirmar la escala |
-| Fase | `sensor` (enum) | Apagada / Encendiendo / Calentando / En espera / Apagándose / Limpieza / Alarma, deducida de `statusDescription` |
+| Fase | `sensor` (enum) | Apagada / Encendiendo / Calentando / En espera / Apagándose / Enfriando / Limpieza / Alarma, deducida de `statusDescription` |
 | Estado de la estufa | `sensor` | Texto que manda la estufa, p. ej. `accensione: WARMUP`, `Potenza 3` |
 | Código de estado | `sensor` | Diagnóstico: código `status` en bruto |
 | Temperatura ambiente | `sensor` | Para históricos y automatizaciones |
@@ -30,15 +30,19 @@ Por cada estufa, un dispositivo con:
 
 ## Códigos observados
 
-| `status` | `statusDescription` | Fase |
-|---|---|---|
-| 10 | accensione: WARMUP | Encendiendo |
-| 11 | Potenza 1 | Calentando |
-| 12 | Potenza 2 | Calentando |
-| 13 | Potenza 3 | Calentando |
-| 14 | Potenza 4 | Calentando |
+Ciclo real del 27/11/2026 con consigna 20 °C y *standby* activado:
 
-Faltan los de apagado, apagándose, limpieza, standby y alarma.
+| `status` | `statusDescription` | Fase | Notas |
+|---|---|---|---|
+| 10 | accensione: WARMUP | Encendiendo | |
+| 11-14 | Potenza 1-4 | Calentando | Modula 3 → 4 → 3 → 2 → 1 al acercarse a la consigna |
+| 40 | Spegnimento | Apagándose | Al superar la consigna (20,6 °C). ~7 min |
+| 41 | Raffreddamento | Enfriando | ~17 min |
+| 46 | Stand-by | En espera | Volverá a arrancar sola al bajar la temperatura |
+
+Faltan el apagado manual (probablemente código 0, *Spento*), la limpieza y las alarmas.
+
+Comportamiento en HA: durante *Apagándose* y *Enfriando* el termostato aparece apagado (no hay llama) y **no se permite encender** hasta que termine. En *Stand-by* aparece encendido y en reposo. Un `online: false` aislado (se vio uno durante el enfriamiento) no deja las entidades como no disponibles: hacen falta 2 lecturas seguidas.
 
 Características:
 

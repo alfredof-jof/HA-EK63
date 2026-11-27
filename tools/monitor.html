@@ -92,7 +92,7 @@
     </div>
     <div class="card">
       <h2>Códigos de estado vistos</h2>
-      <p class="muted" style="margin:0 0 10px;font-size:13px">Objetivo: verlos todos (apagada, apagándose, limpieza, standby, alarma) antes de cerrar la integración de HA.</p>
+      <p class="muted" style="margin:0 0 10px;font-size:13px">Faltan: apagada (manual), limpieza y alarma antes de cerrar la integración de HA.</p>
       <table><thead><tr><th>Código</th><th>Descripción</th><th>Fase</th><th>Veces</th></tr></thead><tbody id="codes"></tbody></table>
       <details style="margin-top:14px"><summary>JSON completo de la última lectura</summary><pre id="raw"></pre></details>
     </div>
@@ -102,19 +102,20 @@
 <script>
 // --- Misma lógica que custom_components/smartek63/coordinator.py ---
 const PHASE_KEYWORDS = [["allarm","alarm"],["alarm","alarm"],["errore","alarm"],["accensione","ignition"],["warmup","ignition"],
-  ["potenza","heating"],["spegnimento","shutdown"],["pulizia","cleaning"],["stand","standby"],["attesa","standby"],["spento","off"],["off","off"]];
+  ["potenza","heating"],["spegnimento","shutdown"],["raffredd","cooling"],["pulizia","cleaning"],["stand","standby"],["attesa","standby"],["spento","off"],["off","off"]];
 const ON_STATUSES = new Set([1,4,5,10,11,12,13,14,15]);
 const PHASES = {
   off:{label:"Apagada",icon:"⏻",color:"--grey",lvl:0}, ignition:{label:"Encendiendo",icon:"🔥",color:"--warm",lvl:2},
   heating:{label:"Calentando",icon:"🔥",color:"--fire",lvl:3}, standby:{label:"En espera",icon:"⏸",color:"--cool",lvl:1},
-  shutdown:{label:"Apagándose",icon:"⤵",color:"--cool",lvl:1}, cleaning:{label:"Limpieza",icon:"🧹",color:"--cool",lvl:1},
+  shutdown:{label:"Apagándose",icon:"⤵",color:"--cool",lvl:1}, cooling:{label:"Enfriando",icon:"❄",color:"--cool",lvl:1}, cleaning:{label:"Limpieza",icon:"🧹",color:"--cool",lvl:1},
   alarm:{label:"Alarma",icon:"⚠",color:"--bad",lvl:4}, unknown:{label:"Desconocida",icon:"?",color:"--grey",lvl:0},
 };
 function phase(d){
   const desc = String(d?.statusDescription ?? "").toLowerCase();
   for (const [k,v] of PHASE_KEYWORDS) if (desc.includes(k)) return v;
   const c = Number(d?.status);
-  if (c === 0) return "off";
+  const byCode = {0:"off",10:"ignition",11:"heating",12:"heating",13:"heating",14:"heating",15:"heating",40:"shutdown",41:"cooling",46:"standby"};
+  if (c in byCode) return byCode[c];
   if (ON_STATUSES.has(c)) return "heating";
   return "unknown";
 }
@@ -179,7 +180,7 @@ function renderCharts(){
   const sets = {
     cTemp: { datasets: [ ds("Ambiente", "--fire", pts("roomTemperature"), {tension: .25}), ds("Consigna", "--cool", pts("temperature"), {...step, borderDash: [6,4]}) ], y: {} },
     cPhase: { datasets: [ ds("Fase", "--warm", rows.map(r => ({x: Date.parse(r.ts), y: PHASES[phase(r)].lvl})), {...step, fill: true, backgroundColor: "color-mix(in srgb, " + css("--warm") + " 25%, transparent)"}) ],
-      y: { min: 0, max: 4, ticks: { color: css("--muted"), stepSize: 1, callback: v => ["Apagada","Espera/limpieza","Encendiendo","Calentando","Alarma"][v] ?? "" } } },
+      y: { min: 0, max: 4, ticks: { color: css("--muted"), stepSize: 1, callback: v => ["Apagada","Espera/apagado","Encendiendo","Calentando","Alarma"][v] ?? "" } } },
     cPower: { datasets: [ ds("Potencia", "--fire", pts("power"), step), ds("Ventilador 1", "--cool", pts("fan1Power"), step), ds("Ventilador 2", "--ok", pts("fan2Power"), {...step, borderDash: [4,3]}) ],
       y: { min: 0, suggestedMax: 5, ticks: { color: css("--muted"), stepSize: 1 } } },
     cCode: { datasets: [ ds("status", "--grey", pts("status"), step) ], y: { ticks: { color: css("--muted"), stepSize: 1 } } },

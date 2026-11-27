@@ -22,18 +22,23 @@ from .const import (
     DEFAULT_MIN_TOGGLE_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    KEY_ONLINE,
     KEY_STATUS,
     KEY_STATUS_DESCRIPTION,
     MAX_BACKOFF_INTERVAL,
+    OFFLINE_DEBOUNCE,
     ON_STATUSES,
     PHASE_ALARM,
     PHASE_CLEANING,
+    PHASE_COOLING,
     PHASE_HEATING,
     PHASE_IGNITION,
     PHASE_OFF,
     PHASE_SHUTDOWN,
     PHASE_STANDBY,
     PHASE_UNKNOWN,
+    STATUS_PHASES,
+    TRANSITION_PHASES,
 )
 
 # Palabras (italiano/inglés) de statusDescription -> fase. El orden importa:
@@ -46,6 +51,7 @@ _PHASE_KEYWORDS: tuple[tuple[str, str], ...] = (
     ("warmup", PHASE_IGNITION),
     ("potenza", PHASE_HEATING),
     ("spegnimento", PHASE_SHUTDOWN),
+    ("raffredd", PHASE_COOLING),
     ("pulizia", PHASE_CLEANING),
     ("stand", PHASE_STANDBY),
     ("attesa", PHASE_STANDBY),
@@ -73,15 +79,19 @@ def phase(data: dict[str, Any] | None) -> str:
         if keyword in description:
             return value
     code = status_code(data)
-    if code == 0:
-        return PHASE_OFF
+    if code in STATUS_PHASES:
+        return STATUS_PHASES[code]
     if code in ON_STATUSES:
         return PHASE_HEATING
     return PHASE_UNKNOWN
 
 
 def is_on(data: dict[str, Any] | None) -> bool:
-    """Encendida = arrancando, calentando o en standby esperando a reanudar."""
+    """Encendida = arrancando, calentando o en standby esperando a reanudar.
+
+    Apagándose / enfriando cuentan como apagada (no hay llama), aunque sea un
+    ciclo de standby que volverá a arrancar solo.
+    """
     current = phase(data)
     if current in (PHASE_IGNITION, PHASE_HEATING, PHASE_STANDBY):
         return True
@@ -110,6 +120,7 @@ class SmartEK63Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.heaters: dict[str, str] = dict(entry.data[CONF_HEATERS])
         self.options_snapshot = dict(entry.options)
         self._last_toggle: dict[str, float] = {}
+        self._offline_streak: dict[str, int] = {}
         self._cancel_delayed_refresh: CALLBACK_TYPE | None = None
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
@@ -123,7 +134,15 @@ class SmartEK63Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
             self.update_interval = min(current * 2, timedelta(seconds=MAX_BACKOFF_INTERVAL))
             raise UpdateFailed(f"Error leyendo la estufa: {err}") from err
         self.update_interval = self.base_interval
-        return dict(zip(self.heaters, results, strict=True))
+        data = dict(zip(self.heaters, results, strict=True))
+        for hid, heater in data.items():
+            offline = heater.get(KEY_ONLINE) is False
+            self._offline_streak[hid] = self._offline_streak.get(hid, 0) + 1 if offline else 0
+        return data
+
+    def is_offline(self, heater_id: str) -> bool:
+        """Offline confirmado en varias lecturas seguidas (ignora falsos aislados)."""
+        return self._offline_streak.get(heater_id, 0) >= OFFLINE_DEBOUNCE
 
     # --- Comandos ---
 
@@ -137,6 +156,9 @@ class SmartEK63Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         if data is not None and is_on(data) == on:
             _LOGGER.debug("La estufa %s ya está %s; no se envía nada", heater_id, "on" if on else "off")
             return
+        if on and data is not None and phase(data) in TRANSITION_PHASES:
+            # No interrumpir apagado / enfriamiento / limpieza.
+            raise HomeAssistantError(translation_domain=DOMAIN, translation_key="stove_busy")
         last = self._last_toggle.get(heater_id)
         wait = self.min_toggle_seconds
         if last is not None and time.monotonic() - last < wait:

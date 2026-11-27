@@ -86,6 +86,7 @@
           "heating": "Heating",
           "standby": "Standby",
           "shutdown": "Shutting down",
+          "cooling": "Cooling down",
           "cleaning": "Cleaning",
           "alarm": "Alarm",
           "unknown": "Unknown"
@@ -125,6 +126,9 @@
     },
     "auth_failed": {
       "message": "The SmartEK63 session has expired. Re-authenticate the integration."
+    },
+    "stove_busy": {
+      "message": "The stove is shutting down or cooling. Wait until it finishes before switching it on."
     }
   }
 }

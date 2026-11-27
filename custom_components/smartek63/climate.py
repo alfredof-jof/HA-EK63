@@ -22,6 +22,7 @@ from .const import (
     KEY_TARGET_TEMPERATURE,
     MODES,
     PHASE_CLEANING,
+    PHASE_COOLING,
     PHASE_HEATING,
     PHASE_IGNITION,
     PHASE_SHUTDOWN,
@@ -73,7 +74,7 @@ class SmartEK63Climate(SmartEK63Entity, ClimateEntity):
             return HVACAction.PREHEATING
         if current == PHASE_HEATING:
             return HVACAction.HEATING
-        if current in (PHASE_STANDBY, PHASE_SHUTDOWN, PHASE_CLEANING):
+        if current in (PHASE_STANDBY, PHASE_SHUTDOWN, PHASE_COOLING, PHASE_CLEANING):
             return HVACAction.IDLE
         return HVACAction.HEATING if is_on(self.heater) else HVACAction.OFF
 

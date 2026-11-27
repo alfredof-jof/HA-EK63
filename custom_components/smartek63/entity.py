@@ -7,7 +7,7 @@ from typing import Any
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, KEY_ONLINE, MANUFACTURER, MODEL
+from .const import DOMAIN, MANUFACTURER, MODEL
 from .coordinator import SmartEK63Coordinator
 
 
@@ -41,4 +41,4 @@ class SmartEK63Entity(CoordinatorEntity[SmartEK63Coordinator]):
     @property
     def available(self) -> bool:
         """No disponible si falla la nube o la estufa está offline."""
-        return super().available and bool(self.heater) and self.heater.get(KEY_ONLINE) is not False
+        return super().available and bool(self.heater) and not self.coordinator.is_offline(self.heater_id)

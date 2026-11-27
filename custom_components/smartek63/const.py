@@ -49,26 +49,12 @@ KEY_POWER: Final = "power"  # nivel de potencia configurado (1-5)
 KEY_LAST_UPDATE: Final = "lastUpdate"  # ISO 8601 UTC
 KEY_SCHEDULING: Final = "scheduling"  # {"active": bool, "slot1".."slot8"}
 
-# --- Estado ---
-# Observado (27/11/2026):
-#   10 "accensione: WARMUP"   11-14 "Potenza 1".."Potenza 4"
-# Homey usaba {1, 4, 5, 10, 11}; se añaden 12-14 (vistos) y 15 (Potenza 5,
-# deducido). Además, la fase se
-# calcula a partir de statusDescription (ver coordinator.phase), que es más fiable.
-ON_STATUSES: Final = frozenset({1, 4, 5, 10, 11, 12, 13, 14, 15})
-STATUS_DESCRIPTIONS: Final[dict[int, str]] = {
-    10: "accensione: WARMUP",
-    11: "Potenza 1",
-    12: "Potenza 2",
-    13: "Potenza 3",
-    14: "Potenza 4",
-}
-
 # Fases normalizadas (sensor enum)
 PHASE_OFF: Final = "off"
 PHASE_IGNITION: Final = "ignition"
 PHASE_HEATING: Final = "heating"
 PHASE_SHUTDOWN: Final = "shutdown"
+PHASE_COOLING: Final = "cooling"
 PHASE_CLEANING: Final = "cleaning"
 PHASE_ALARM: Final = "alarm"
 PHASE_STANDBY: Final = "standby"
@@ -79,10 +65,47 @@ PHASES: Final = [
     PHASE_HEATING,
     PHASE_STANDBY,
     PHASE_SHUTDOWN,
+    PHASE_COOLING,
     PHASE_CLEANING,
     PHASE_ALARM,
     PHASE_UNKNOWN,
 ]
+# Fases en las que la estufa está apagando la llama: no se debe mandar "on".
+TRANSITION_PHASES: Final = frozenset({PHASE_SHUTDOWN, PHASE_COOLING, PHASE_CLEANING})
+
+# --- Estado ---
+# Ciclo real observado el 27/11/2026 (consigna 20 °C, standbyMode activo):
+#   10 accensione: WARMUP -> 13/14 Potenza 3-4 -> modula 13, 12, 11 al acercarse
+#   -> 40 Spegnimento (~7 min) -> 41 Raffreddamento (~17 min) -> 46 Stand-by
+# La fase se calcula primero por statusDescription (coordinator.phase) y, si el
+# texto no se reconoce, por esta tabla de códigos.
+STATUS_PHASES: Final[dict[int, str]] = {
+    0: PHASE_OFF,  # deducido: falta verlo
+    10: PHASE_IGNITION,
+    11: PHASE_HEATING,
+    12: PHASE_HEATING,
+    13: PHASE_HEATING,
+    14: PHASE_HEATING,
+    15: PHASE_HEATING,  # Potenza 5, deducido
+    40: PHASE_SHUTDOWN,
+    41: PHASE_COOLING,
+    46: PHASE_STANDBY,
+}
+# Respaldo para códigos desconocidos (interpretación de Homey + Potenza 1-5).
+ON_STATUSES: Final = frozenset({1, 4, 5, 10, 11, 12, 13, 14, 15, 46})
+STATUS_DESCRIPTIONS: Final[dict[int, str]] = {
+    10: "accensione: WARMUP",
+    11: "Potenza 1",
+    12: "Potenza 2",
+    13: "Potenza 3",
+    14: "Potenza 4",
+    40: "Spegnimento",
+    41: "Raffreddamento",
+    46: "Stand-by",
+}
+# Lecturas seguidas con online=false antes de marcar las entidades como no
+# disponibles (se vio un falso offline aislado durante el enfriamiento).
+OFFLINE_DEBOUNCE: Final = 2
 
 # --- Rangos ---
 TEMP_MIN: Final = 5
