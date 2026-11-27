@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time
 from collections.abc import Awaitable
 from datetime import timedelta
@@ -22,6 +23,7 @@ from .const import (
     DEFAULT_MIN_TOGGLE_INTERVAL,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    EVENT_STATUS_CHANGED,
     KEY_ONLINE,
     KEY_STATUS,
     KEY_STATUS_DESCRIPTION,
@@ -42,11 +44,22 @@ from .const import (
 )
 
 # Palabras (italiano/inglés) de statusDescription -> fase. El orden importa:
-# "spegnimento" debe evaluarse antes que "spento".
+# primero las alarmas, y "spegnimento" antes que "spent" (Stufa spenta).
+# Las alarmas aún no se han visto: se cubren los términos habituales de
+# Edilkamin (mancata accensione, sovratemperatura, pellet esaurito, A01...).
+_ALARM_CODE = re.compile(r"\b[ae]\d{2}\b")
 _PHASE_KEYWORDS: tuple[tuple[str, str], ...] = (
     ("allarm", PHASE_ALARM),
     ("alarm", PHASE_ALARM),
     ("errore", PHASE_ALARM),
+    ("error", PHASE_ALARM),
+    ("anomalia", PHASE_ALARM),
+    ("guasto", PHASE_ALARM),
+    ("blocco", PHASE_ALARM),
+    ("mancata", PHASE_ALARM),
+    ("sovratemp", PHASE_ALARM),
+    ("esaurit", PHASE_ALARM),
+    ("mancanza", PHASE_ALARM),
     ("accensione", PHASE_IGNITION),
     ("warmup", PHASE_IGNITION),
     ("potenza", PHASE_HEATING),
@@ -55,7 +68,7 @@ _PHASE_KEYWORDS: tuple[tuple[str, str], ...] = (
     ("pulizia", PHASE_CLEANING),
     ("stand", PHASE_STANDBY),
     ("attesa", PHASE_STANDBY),
-    ("spento", PHASE_OFF),
+    ("spent", PHASE_OFF),  # "Stufa spenta" (código 0)
     ("off", PHASE_OFF),
 )
 
@@ -75,6 +88,8 @@ def status_code(data: dict[str, Any] | None) -> int | None:
 def phase(data: dict[str, Any] | None) -> str:
     """Fase normalizada a partir de statusDescription (y el código como respaldo)."""
     description = str((data or {}).get(KEY_STATUS_DESCRIPTION) or "").lower()
+    if _ALARM_CODE.search(description):
+        return PHASE_ALARM
     for keyword, value in _PHASE_KEYWORDS:
         if keyword in description:
             return value
@@ -121,6 +136,8 @@ class SmartEK63Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         self.options_snapshot = dict(entry.options)
         self._last_toggle: dict[str, float] = {}
         self._offline_streak: dict[str, int] = {}
+        self._last_status: dict[str, tuple[int | None, str | None]] = {}
+        self._reported_unknown: set[tuple[int | None, str | None]] = set()
         self._cancel_delayed_refresh: CALLBACK_TYPE | None = None
 
     async def _async_update_data(self) -> dict[str, dict[str, Any]]:
@@ -138,7 +155,38 @@ class SmartEK63Coordinator(DataUpdateCoordinator[dict[str, dict[str, Any]]]):
         for hid, heater in data.items():
             offline = heater.get(KEY_ONLINE) is False
             self._offline_streak[hid] = self._offline_streak.get(hid, 0) + 1 if offline else 0
+            self._track_status(hid, heater)
         return data
+
+    def _track_status(self, heater_id: str, heater: dict[str, Any]) -> None:
+        """Evento en cada cambio de estado y aviso en el log de códigos nuevos."""
+        current = (status_code(heater), heater.get(KEY_STATUS_DESCRIPTION))
+        previous = self._last_status.get(heater_id)
+        self._last_status[heater_id] = current
+        current_phase = phase(heater)
+
+        if current_phase in (PHASE_UNKNOWN, PHASE_ALARM) and current not in self._reported_unknown:
+            self._reported_unknown.add(current)
+            if current_phase == PHASE_ALARM:
+                _LOGGER.warning("Alarma en la estufa: código %s, %r", *current)
+            else:
+                _LOGGER.warning(
+                    "Código de estado no reconocido %s, %r. Añádelo a STATUS_PHASES en const.py", *current
+                )
+
+        if previous is not None and previous != current:
+            self.hass.bus.async_fire(
+                EVENT_STATUS_CHANGED,
+                {
+                    "heater_id": heater_id,
+                    "name": self.heaters.get(heater_id),
+                    "old_status": previous[0],
+                    "old_description": previous[1],
+                    "status": current[0],
+                    "description": current[1],
+                    "phase": current_phase,
+                },
+            )
 
     def is_offline(self, heater_id: str) -> bool:
         """Offline confirmado en varias lecturas seguidas (ignora falsos aislados)."""

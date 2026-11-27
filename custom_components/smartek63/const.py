@@ -77,10 +77,12 @@ TRANSITION_PHASES: Final = frozenset({PHASE_SHUTDOWN, PHASE_COOLING, PHASE_CLEAN
 # Ciclo real observado el 27/11/2026 (consigna 20 °C, standbyMode activo):
 #   10 accensione: WARMUP -> 13/14 Potenza 3-4 -> modula 13, 12, 11 al acercarse
 #   -> 40 Spegnimento (~7 min) -> 41 Raffreddamento (~17 min) -> 46 Stand-by
+# Apagado manual desde Stand-by: 46 -> 0 "Stufa spenta" (inmediato, sin
+# Spegnimento porque la llama ya estaba apagada).
 # La fase se calcula primero por statusDescription (coordinator.phase) y, si el
 # texto no se reconoce, por esta tabla de códigos.
 STATUS_PHASES: Final[dict[int, str]] = {
-    0: PHASE_OFF,  # deducido: falta verlo
+    0: PHASE_OFF,  # "Stufa spenta"
     10: PHASE_IGNITION,
     11: PHASE_HEATING,
     12: PHASE_HEATING,
@@ -94,6 +96,7 @@ STATUS_PHASES: Final[dict[int, str]] = {
 # Respaldo para códigos desconocidos (interpretación de Homey + Potenza 1-5).
 ON_STATUSES: Final = frozenset({1, 4, 5, 10, 11, 12, 13, 14, 15, 46})
 STATUS_DESCRIPTIONS: Final[dict[int, str]] = {
+    0: "Stufa spenta",
     10: "accensione: WARMUP",
     11: "Potenza 1",
     12: "Potenza 2",
@@ -103,6 +106,9 @@ STATUS_DESCRIPTIONS: Final[dict[int, str]] = {
     41: "Raffreddamento",
     46: "Stand-by",
 }
+# Evento en el bus de HA en cada cambio de código de estado.
+EVENT_STATUS_CHANGED: Final = f"{DOMAIN}_status_changed"
+
 # Lecturas seguidas con online=false antes de marcar las entidades como no
 # disponibles (se vio un falso offline aislado durante el enfriamiento).
 OFFLINE_DEBOUNCE: Final = 2

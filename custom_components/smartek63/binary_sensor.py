@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SmartEK63ConfigEntry
-from .const import KEY_ONLINE, KEY_SCHEDULING
-from .coordinator import SmartEK63Coordinator
+from .const import KEY_ONLINE, KEY_SCHEDULING, KEY_STATUS_DESCRIPTION, PHASE_ALARM, PHASE_UNKNOWN
+from .coordinator import SmartEK63Coordinator, phase, status_code
 from .entity import SmartEK63Entity
 
 
@@ -19,8 +21,35 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
     entities: list[BinarySensorEntity] = []
     for hid in coordinator.heaters:
-        entities += [SmartEK63Online(coordinator, hid), SmartEK63Scheduling(coordinator, hid)]
+        entities += [
+            SmartEK63Online(coordinator, hid),
+            SmartEK63Scheduling(coordinator, hid),
+            SmartEK63Alarm(coordinator, hid),
+        ]
     async_add_entities(entities)
+
+
+class SmartEK63Alarm(SmartEK63Entity, BinarySensorEntity):
+    """Problema: la estufa está en alarma o en un estado que no conocemos."""
+
+    _attr_translation_key = "alarm"
+    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+
+    def __init__(self, coordinator: SmartEK63Coordinator, heater_id: str) -> None:
+        super().__init__(coordinator, heater_id, "alarm")
+
+    @property
+    def is_on(self) -> bool:
+        return phase(self.heater) == PHASE_ALARM
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        current = phase(self.heater)
+        return {
+            "code": status_code(self.heater),
+            "description": self.heater.get(KEY_STATUS_DESCRIPTION),
+            "unknown_status": current == PHASE_UNKNOWN,
+        }
 
 
 class SmartEK63Scheduling(SmartEK63Entity, BinarySensorEntity):

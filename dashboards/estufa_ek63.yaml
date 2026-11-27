@@ -75,6 +75,9 @@ views:
             entity: binary_sensor.ek63_c7f790_conectividad
             grid_options: { columns: 6 }
           - type: tile
+            entity: binary_sensor.ek63_c7f790_alarma
+            grid_options: { columns: 12 }
+          - type: tile
             entity: binary_sensor.ek63_c7f790_programacion_activa
             icon: mdi:calendar-clock
             grid_options: { columns: 6 }
@@ -84,7 +87,7 @@ views:
               {% set c = state_attr('climate.ek63_c7f790', 'temperature') | float(0) %}
               {% if is_state('binary_sensor.ek63_c7f790_conectividad', 'off') %}
               ⚠️ **La estufa no está conectada a la nube.**
-              {% elif is_state('sensor.ek63_c7f790_fase', 'alarm') %}
+              {% elif is_state('binary_sensor.ek63_c7f790_alarma', 'on') %}
               🚨 **Alarma:** {{ states('sensor.ek63_c7f790_estado_de_la_estufa') }}
               {% elif t and c %}
               {{ 'Faltan' if t < c else 'Sobran' }} **{{ (c - t) | abs | round(1) }} °C**
@@ -152,6 +155,7 @@ views:
                 - sensor.ek63_c7f790_fase
                 - sensor.ek63_c7f790_estado_de_la_estufa
                 - binary_sensor.ek63_c7f790_conectividad
+                - binary_sensor.ek63_c7f790_alarma
           - type: entities
             title: Diagnóstico
             state_color: true

@@ -114,6 +114,9 @@
     "binary_sensor": {
       "scheduling": {
         "name": "Schedule active"
+      },
+      "alarm": {
+        "name": "Alarm"
       }
     }
   },

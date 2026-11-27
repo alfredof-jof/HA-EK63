@@ -53,6 +53,12 @@
   pre { margin: 0; white-space: pre-wrap; word-break: break-all; color: var(--muted); }
   details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
   .err { color: var(--bad); }
+  .alert { border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; font-weight: 550;
+    border: 1px solid var(--bad); background: color-mix(in srgb, var(--bad) 14%, var(--card)); }
+  .alert.warn { border-color: var(--warm); background: color-mix(in srgb, var(--warm) 16%, var(--card)); }
+  .alert small { display: block; font-weight: 400; color: var(--muted); margin-top: 4px; }
+  .btn { margin-left: auto; border: 1px solid var(--line); background: var(--card); color: var(--text);
+    border-radius: 10px; padding: 6px 12px; font: inherit; font-size: 13px; cursor: pointer; }
   .muted { color: var(--muted); }
   @media (max-width: 900px) { .two, .charts { grid-template-columns: 1fr; } }
   @media (max-width: 420px) { .hero { grid-column: span 1; } .tile .value { font-size: 22px; } }
@@ -67,7 +73,10 @@
       <span id="updated"></span>
       <span id="pollinfo"></span>
     </div>
+    <button id="notifyBtn" class="btn" hidden>🔔 Activar avisos de escritorio</button>
   </header>
+
+  <div id="alert" class="alert" hidden></div>
 
   <section class="grid tiles" id="tiles"></section>
 
@@ -101,8 +110,9 @@
 
 <script>
 // --- Misma lógica que custom_components/smartek63/coordinator.py ---
-const PHASE_KEYWORDS = [["allarm","alarm"],["alarm","alarm"],["errore","alarm"],["accensione","ignition"],["warmup","ignition"],
-  ["potenza","heating"],["spegnimento","shutdown"],["raffredd","cooling"],["pulizia","cleaning"],["stand","standby"],["attesa","standby"],["spento","off"],["off","off"]];
+const ALARM_WORDS = ["allarm","alarm","errore","error","anomalia","guasto","blocco","mancata","sovratemp","esaurit","mancanza"];
+const PHASE_KEYWORDS = [...ALARM_WORDS.map(w => [w, "alarm"]), ["accensione","ignition"],["warmup","ignition"],
+  ["potenza","heating"],["spegnimento","shutdown"],["raffredd","cooling"],["pulizia","cleaning"],["stand","standby"],["attesa","standby"],["spent","off"],["off","off"]];
 const ON_STATUSES = new Set([1,4,5,10,11,12,13,14,15]);
 const PHASES = {
   off:{label:"Apagada",icon:"⏻",color:"--grey",lvl:0}, ignition:{label:"Encendiendo",icon:"🔥",color:"--warm",lvl:2},
@@ -112,6 +122,7 @@ const PHASES = {
 };
 function phase(d){
   const desc = String(d?.statusDescription ?? "").toLowerCase();
+  if (/\b[ae]\d{2}\b/.test(desc)) return "alarm";
   for (const [k,v] of PHASE_KEYWORDS) if (desc.includes(k)) return v;
   const c = Number(d?.status);
   const byCode = {0:"off",10:"ignition",11:"heating",12:"heating",13:"heating",14:"heating",15:"heating",40:"shutdown",41:"cooling",46:"standby"};
@@ -220,6 +231,33 @@ function renderHeader(poll){
   p.textContent = poll.error ? `Error de lectura: ${poll.error}` : `Lectura cada ${poll.interval} s · ${history.length} registros`;
 }
 
+// --- Avisos: alarma, estado desconocido u offline ---
+let lastAlertKey = null;
+function renderAlert(){
+  const box = document.getElementById("alert");
+  if (!latest) return;
+  const ph = phase(latest);
+  let kind = null, text = "";
+  if (latest.online === false) { kind = "bad"; text = "La estufa no está conectada a la nube"; }
+  else if (ph === "alarm") { kind = "bad"; text = `🚨 Alarma: ${latest.statusDescription} (código ${latest.status})`; }
+  else if (ph === "unknown") { kind = "warn"; text = `Estado nuevo sin clasificar: ${latest.statusDescription} (código ${latest.status})`; }
+  box.hidden = !kind;
+  document.title = kind ? `⚠ ${text}` : "Estufa EK63";
+  if (!kind) { lastAlertKey = null; return; }
+  box.className = "alert" + (kind === "warn" ? " warn" : "");
+  box.innerHTML = `${esc(text)}<small>Detectado ${fmtTime(new Date().toISOString())}. Queda guardado en tools/dumps/ para añadirlo a la integración.</small>`;
+  const key = `${kind}|${latest.status}|${latest.statusDescription}|${latest.online}`;
+  if (key !== lastAlertKey) {
+    lastAlertKey = key;
+    if ("Notification" in window && Notification.permission === "granted") new Notification("Estufa EK63", { body: text });
+  }
+}
+const notifyBtn = document.getElementById("notifyBtn");
+if ("Notification" in window && Notification.permission === "default") {
+  notifyBtn.hidden = false;
+  notifyBtn.onclick = () => Notification.requestPermission().then(() => notifyBtn.hidden = true);
+}
+
 async function refresh(){
   try {
     const res = await fetch(`/api/state?since=${encodeURIComponent(since)}`, {cache: "no-store"});
@@ -232,7 +270,7 @@ async function refresh(){
     since = lastTs || since;
     const cutoff = Date.now() - 7*24*3600e3;
     history = history.filter(r => Date.parse(r.ts) >= cutoff);
-    renderHeader(state.poll); renderTiles(); renderCharts(); renderTables();
+    renderHeader(state.poll); renderTiles(); renderCharts(); renderTables(); renderAlert();
   } catch (e) {
     const p = document.getElementById("pollinfo"); p.className = "err"; p.textContent = "Sin conexión con monitor.py";
   }

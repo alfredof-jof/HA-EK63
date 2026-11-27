@@ -114,6 +114,9 @@
     "binary_sensor": {
       "scheduling": {
         "name": "Programación activa"
+      },
+      "alarm": {
+        "name": "Alarma"
       }
     }
   },

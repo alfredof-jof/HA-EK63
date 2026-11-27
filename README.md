@@ -23,6 +23,7 @@ Por cada estufa, un dispositivo con:
 | Última actualización en la nube | `sensor` | Diagnóstico (timestamp) |
 | Conectividad | `binary_sensor` | Diagnóstico. Si la estufa está offline, el resto pasa a *no disponible* |
 | Programación activa | `binary_sensor` | Cronotermostato de la estufa (`scheduling.active`) |
+| Alarma | `binary_sensor` (problema) | Encendido si la estufa está en alarma. Atributos `code`, `description` y `unknown_status` |
 
 ## Panel de seguimiento
 
@@ -34,13 +35,19 @@ Ciclo real del 27/11/2026 con consigna 20 °C y *standby* activado:
 
 | `status` | `statusDescription` | Fase | Notas |
 |---|---|---|---|
+| 0 | Stufa spenta | Apagada | Apagado manual desde Stand-by: inmediato |
 | 10 | accensione: WARMUP | Encendiendo | |
 | 11-14 | Potenza 1-4 | Calentando | Modula 3 → 4 → 3 → 2 → 1 al acercarse a la consigna |
 | 40 | Spegnimento | Apagándose | Al superar la consigna (20,6 °C). ~7 min |
 | 41 | Raffreddamento | Enfriando | ~17 min |
 | 46 | Stand-by | En espera | Volverá a arrancar sola al bajar la temperatura |
 
-Faltan el apagado manual (probablemente código 0, *Spento*), la limpieza y las alarmas.
+Faltan la limpieza y las alarmas. Mientras no se vean, se detectan por texto: códigos tipo `A01`/`E12` y palabras como *allarme*, *errore*, *mancata accensione*, *sovratemperatura* o *pellet esaurito*. Cualquier código nuevo:
+
+- sale como fase *Desconocida*;
+- se avisa una vez en el log de HA;
+- lanza el evento `smartek63_status_changed`;
+- en el panel del PC aparece un aviso, con notificación de escritorio si la activas.
 
 Comportamiento en HA: durante *Apagándose* y *Enfriando* el termostato aparece apagado (no hay llama) y **no se permite encender** hasta que termine. En *Stand-by* aparece encendido y en reposo. Un `online: false` aislado (se vio uno durante el enfriamiento) no deja las entidades como no disponibles: hacen falta 2 lecturas seguidas.
 
@@ -160,20 +167,36 @@ actions:
 alias: Estufa - offline o alarma
 triggers:
   - trigger: state
-    entity_id: binary_sensor.ek63_conectividad
+    entity_id: binary_sensor.ek63_c7f790_conectividad
     to: "off"
     for: "00:10:00"
   - trigger: state
-    entity_id: sensor.ek63_codigo_de_estado
-conditions:
-  - condition: template
-    # Rellena la lista con los códigos de alarma observados en la fase 0
-    value_template: >
-      {{ trigger.entity_id.startswith('binary_sensor') or trigger.to_state.state | int(0) in [] }}
+    entity_id: binary_sensor.ek63_c7f790_alarma
+    to: "on"
 actions:
   - action: notify.mobile_app_mi_movil
     data:
-      message: "Revisa la estufa: {{ trigger.to_state.name }} = {{ trigger.to_state.state }}"
+      title: Estufa
+      message: >
+        {% if trigger.entity_id.endswith('conectividad') %}Sin conexión desde hace 10 min
+        {% else %}Alarma: {{ state_attr('binary_sensor.ek63_c7f790_alarma', 'description') }}
+        (código {{ state_attr('binary_sensor.ek63_c7f790_alarma', 'code') }}){% endif %}
+```
+
+**Estado nuevo sin clasificar** (para ir completando la integración). Cada cambio de código lanza el evento `smartek63_status_changed` con `old_status`, `status`, `description` y `phase`:
+
+```yaml
+alias: Estufa - estado desconocido
+triggers:
+  - trigger: event
+    event_type: smartek63_status_changed
+    event_data:
+      phase: unknown
+actions:
+  - action: notify.mobile_app_mi_movil
+    data:
+      title: Estufa - estado nuevo
+      message: "Código {{ trigger.event.data.status }}: {{ trigger.event.data.description }}"
 ```
 
 ## Limitaciones
