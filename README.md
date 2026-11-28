@@ -141,7 +141,7 @@ logger:
 
 ## Automatizaciones de ejemplo
 
-Sustituye `climate.ek63`, `sensor.ek63_*`, `binary_sensor.ek63_*` y `notify.mobile_app_mi_movil` por tus entidades.
+Sustituye `climate.salon_ek63_c7f790`, `sensor.ek63_*`, `binary_sensor.ek63_*` y `notify.mobile_app_mi_movil` por tus entidades.
 
 **Aviso de helada:**
 
@@ -149,12 +149,12 @@ Sustituye `climate.ek63`, `sensor.ek63_*`, `binary_sensor.ek63_*` y `notify.mobi
 alias: Estufa - aviso temperatura baja
 triggers:
   - trigger: numeric_state
-    entity_id: sensor.ek63_temperatura_ambiente
+    entity_id: sensor.salon_ek63_c7f790_temperatura_ambiente
     below: 5
 actions:
   - action: notify.mobile_app_mi_movil
     data:
-      message: "Casa a {{ states('sensor.ek63_temperatura_ambiente') }} °C"
+      message: "Casa a {{ states('sensor.salon_ek63_c7f790_temperatura_ambiente') }} °C"
 ```
 
 **Encender antes de llegar** (con un `input_datetime.llegada_casa` y 2 h de antelación):
@@ -167,12 +167,12 @@ triggers:
       {{ now() >= (states('input_datetime.llegada_casa') | as_datetime | as_local) - timedelta(hours=2) }}
 conditions:
   - condition: state
-    entity_id: climate.ek63
+    entity_id: climate.salon_ek63_c7f790
     state: "off"
 actions:
   - action: climate.set_hvac_mode
     target:
-      entity_id: climate.ek63
+      entity_id: climate.salon_ek63_c7f790
     data:
       hvac_mode: heat
 ```
@@ -183,11 +183,11 @@ actions:
 alias: Estufa - offline o alarma
 triggers:
   - trigger: state
-    entity_id: binary_sensor.ek63_c7f790_conectividad
+    entity_id: binary_sensor.salon_ek63_c7f790_conectividad
     to: "off"
     for: "00:10:00"
   - trigger: state
-    entity_id: binary_sensor.ek63_c7f790_alarma
+    entity_id: binary_sensor.salon_ek63_c7f790_alarma
     to: "on"
 actions:
   - action: notify.mobile_app_mi_movil
@@ -195,8 +195,8 @@ actions:
       title: Estufa
       message: >
         {% if trigger.entity_id.endswith('conectividad') %}Sin conexión desde hace 10 min
-        {% else %}Alarma: {{ state_attr('binary_sensor.ek63_c7f790_alarma', 'alarm_text') or state_attr('binary_sensor.ek63_c7f790_alarma', 'description') }}
-        (código {{ state_attr('binary_sensor.ek63_c7f790_alarma', 'code') }}){% endif %}
+        {% else %}Alarma: {{ state_attr('binary_sensor.salon_ek63_c7f790_alarma', 'alarm_text') or state_attr('binary_sensor.salon_ek63_c7f790_alarma', 'description') }}
+        (código {{ state_attr('binary_sensor.salon_ek63_c7f790_alarma', 'code') }}){% endif %}
 ```
 
 **Estado nuevo sin clasificar** (para ir completando la integración). Cada cambio de código lanza el evento `smartek63_status_changed` con `old_status`, `status`, `description` y `phase`:
