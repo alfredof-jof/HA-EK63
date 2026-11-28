@@ -72,9 +72,9 @@ class SmartEK63Climate(SmartEK63Entity, ClimateEntity):
         current = phase(self.heater)
         if current == PHASE_IGNITION:
             return HVACAction.PREHEATING
-        if current == PHASE_HEATING:
+        if current in (PHASE_HEATING, PHASE_CLEANING):
             return HVACAction.HEATING
-        if current in (PHASE_STANDBY, PHASE_SHUTDOWN, PHASE_COOLING, PHASE_CLEANING):
+        if current in (PHASE_STANDBY, PHASE_SHUTDOWN, PHASE_COOLING):
             return HVACAction.IDLE
         return HVACAction.HEATING if is_on(self.heater) else HVACAction.OFF
 

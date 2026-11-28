@@ -10,8 +10,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import SmartEK63ConfigEntry
-from .const import KEY_ONLINE, KEY_SCHEDULING, KEY_STATUS_DESCRIPTION, PHASE_ALARM, PHASE_UNKNOWN
-from .coordinator import SmartEK63Coordinator, phase, status_code
+from .const import ALARM_CODES, KEY_ONLINE, KEY_SCHEDULING, KEY_STATUS_DESCRIPTION, PHASE_ALARM, PHASE_UNKNOWN
+from .coordinator import SmartEK63Coordinator, alarm_code, phase, status_code
 from .entity import SmartEK63Entity
 
 
@@ -45,8 +45,11 @@ class SmartEK63Alarm(SmartEK63Entity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         current = phase(self.heater)
+        code = alarm_code(self.heater)
         return {
             "code": status_code(self.heater),
+            "alarm_code": code,
+            "alarm_text": ALARM_CODES.get(code or ""),
             "description": self.heater.get(KEY_STATUS_DESCRIPTION),
             "unknown_status": current == PHASE_UNKNOWN,
         }

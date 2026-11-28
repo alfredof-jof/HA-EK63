@@ -71,40 +71,65 @@ PHASES: Final = [
     PHASE_UNKNOWN,
 ]
 # Fases en las que la estufa está apagando la llama: no se debe mandar "on".
-TRANSITION_PHASES: Final = frozenset({PHASE_SHUTDOWN, PHASE_COOLING, PHASE_CLEANING})
+# La limpieza (43 "Pulizia High") ocurre con la llama encendida: no es transición.
+TRANSITION_PHASES: Final = frozenset({PHASE_SHUTDOWN, PHASE_COOLING})
 
 # --- Estado ---
-# Ciclo real observado el 27/11/2026 (consigna 20 °C, standbyMode activo):
-#   10 accensione: WARMUP -> 13/14 Potenza 3-4 -> modula 13, 12, 11 al acercarse
+# Ciclos reales observados el 27-28/11/2026 (consigna 20 °C):
+#   arranque: 2 PULIZIA -> 3 CARICO PELLET -> 4 CONTROLLO INCREMENTO TEMPERATURA
+#   FUMI -> 5 CONTROLLO SUPERAMENTO SOGLIA -> 10 WARMUP (~7-10 min en total;
+#   desde Stand-by a veces empieza directamente en 3)
+#   -> 13/14/15 Potenza 3-5 -> modula 13, 12, 11 al acercarse a la consigna
 #   -> 40 Spegnimento (~7 min) -> 41 Raffreddamento (~17 min) -> 46 Stand-by
-# Apagado manual desde Stand-by: 46 -> 0 "Stufa spenta" (inmediato, sin
-# Spegnimento porque la llama ya estaba apagada).
+#   (con standbyMode) o 0 Stufa spenta (sin standbyMode / apagado manual).
+#   43 Pulizia High: limpieza periódica del brasero en marcha (~30 s) y vuelve
+#   a Potenza.
 # La fase se calcula primero por statusDescription (coordinator.phase) y, si el
 # texto no se reconoce, por esta tabla de códigos.
 STATUS_PHASES: Final[dict[int, str]] = {
     0: PHASE_OFF,  # "Stufa spenta"
+    2: PHASE_IGNITION,
+    3: PHASE_IGNITION,
+    4: PHASE_IGNITION,
+    5: PHASE_IGNITION,
     10: PHASE_IGNITION,
     11: PHASE_HEATING,
     12: PHASE_HEATING,
     13: PHASE_HEATING,
     14: PHASE_HEATING,
-    15: PHASE_HEATING,  # Potenza 5, deducido
+    15: PHASE_HEATING,
     40: PHASE_SHUTDOWN,
     41: PHASE_COOLING,
+    43: PHASE_CLEANING,
     46: PHASE_STANDBY,
 }
-# Respaldo para códigos desconocidos (interpretación de Homey + Potenza 1-5).
-ON_STATUSES: Final = frozenset({1, 4, 5, 10, 11, 12, 13, 14, 15, 46})
+# Respaldo para códigos desconocidos.
+ON_STATUSES: Final = frozenset({1, 2, 3, 4, 5, 10, 11, 12, 13, 14, 15, 43, 46})
 STATUS_DESCRIPTIONS: Final[dict[int, str]] = {
     0: "Stufa spenta",
+    2: "accensione: PULIZIA",
+    3: "accensione: CARICO PELLET",
+    4: "accensione: CONTROLLO INCREMENTO TEMPERATURA FUMI",
+    5: "accensione: CONTROLLO SUPERAMENTO SOGLIA",
     10: "accensione: WARMUP",
     11: "Potenza 1",
     12: "Potenza 2",
     13: "Potenza 3",
     14: "Potenza 4",
+    15: "Potenza 5",
     40: "Spegnimento",
     41: "Raffreddamento",
+    43: "Pulizia High",
     46: "Stand-by",
+}
+# Alarmas vistas en el histórico de la app SmartEK63 (aún no en la API: no se
+# sabe qué código "status" ni qué statusDescription traen). Se detectan por el
+# patrón A01/E12 del texto y se traducen con esta tabla.
+ALARM_CODES: Final[dict[str, str]] = {
+    "A02": "Fallo extractor de humos",
+    "A03": "Fin pellet / stop llama",
+    "A04": "Falta encendido",
+    "A11": "Intervención presostato de seguridad",
 }
 # Evento en el bus de HA en cada cambio de código de estado.
 EVENT_STATUS_CHANGED: Final = f"{DOMAIN}_status_changed"

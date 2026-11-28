@@ -45,9 +45,11 @@ from .const import (
 
 # Palabras (italiano/inglés) de statusDescription -> fase. El orden importa:
 # primero las alarmas, y "spegnimento" antes que "spent" (Stufa spenta).
-# Las alarmas aún no se han visto: se cubren los términos habituales de
-# Edilkamin (mancata accensione, sovratemperatura, pellet esaurito, A01...).
-_ALARM_CODE = re.compile(r"\b[ae]\d{2}\b")
+# Las alarmas aún no se han visto por la API: se cubren los términos habituales
+# de Edilkamin (mancata accensione, sovratemperatura, pellet esaurito, A01...) y
+# los del histórico de la app (A02, A03, A04, A11). Ojo: no usar "fumi", que sale
+# en el arranque normal (4 CONTROLLO INCREMENTO TEMPERATURA FUMI).
+_ALARM_CODE = re.compile(r"\b([ae])(\d{2})\b")
 _PHASE_KEYWORDS: tuple[tuple[str, str], ...] = (
     ("allarm", PHASE_ALARM),
     ("alarm", PHASE_ALARM),
@@ -60,6 +62,16 @@ _PHASE_KEYWORDS: tuple[tuple[str, str], ...] = (
     ("sovratemp", PHASE_ALARM),
     ("esaurit", PHASE_ALARM),
     ("mancanza", PHASE_ALARM),
+    ("pressostat", PHASE_ALARM),  # A11 intervento pressostato
+    ("presostat", PHASE_ALARM),
+    ("estrattor", PHASE_ALARM),  # A02 estrattore fumi
+    ("extractor", PHASE_ALARM),
+    ("fine pellet", PHASE_ALARM),  # A03
+    ("fin pellet", PHASE_ALARM),
+    ("stop fiamma", PHASE_ALARM),
+    ("stop llama", PHASE_ALARM),
+    ("falta encend", PHASE_ALARM),  # A04
+    ("fallo", PHASE_ALARM),
     ("accensione", PHASE_IGNITION),
     ("warmup", PHASE_IGNITION),
     ("potenza", PHASE_HEATING),
@@ -101,14 +113,20 @@ def phase(data: dict[str, Any] | None) -> str:
     return PHASE_UNKNOWN
 
 
+def alarm_code(data: dict[str, Any] | None) -> str | None:
+    """Código de alarma tipo "A03" si aparece en statusDescription."""
+    match = _ALARM_CODE.search(str((data or {}).get(KEY_STATUS_DESCRIPTION) or "").lower())
+    return f"{match.group(1).upper()}{match.group(2)}" if match else None
+
+
 def is_on(data: dict[str, Any] | None) -> bool:
-    """Encendida = arrancando, calentando o en standby esperando a reanudar.
+    """Encendida = arrancando, calentando, limpiando en marcha o en standby.
 
     Apagándose / enfriando cuentan como apagada (no hay llama), aunque sea un
     ciclo de standby que volverá a arrancar solo.
     """
     current = phase(data)
-    if current in (PHASE_IGNITION, PHASE_HEATING, PHASE_STANDBY):
+    if current in (PHASE_IGNITION, PHASE_HEATING, PHASE_CLEANING, PHASE_STANDBY):
         return True
     if current == PHASE_UNKNOWN:
         return status_code(data) in ON_STATUSES

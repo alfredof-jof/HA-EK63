@@ -101,7 +101,7 @@
     </div>
     <div class="card">
       <h2>Códigos de estado vistos</h2>
-      <p class="muted" style="margin:0 0 10px;font-size:13px">Faltan: apagada (manual), limpieza y alarma antes de cerrar la integración de HA.</p>
+      <p class="muted" style="margin:0 0 10px;font-size:13px">Falta ver una alarma real por la API (en el histórico de la app: A02, A03, A04, A11).</p>
       <table><thead><tr><th>Código</th><th>Descripción</th><th>Fase</th><th>Veces</th></tr></thead><tbody id="codes"></tbody></table>
       <details style="margin-top:14px"><summary>JSON completo de la última lectura</summary><pre id="raw"></pre></details>
     </div>
@@ -110,14 +110,15 @@
 
 <script>
 // --- Misma lógica que custom_components/smartek63/coordinator.py ---
-const ALARM_WORDS = ["allarm","alarm","errore","error","anomalia","guasto","blocco","mancata","sovratemp","esaurit","mancanza"];
+const ALARM_WORDS = ["allarm","alarm","errore","error","anomalia","guasto","blocco","mancata","sovratemp","esaurit","mancanza","pressostat","presostat","estrattor","extractor","fine pellet","fin pellet","stop fiamma","stop llama","falta encend","fallo"];
+const ALARM_CODES = {A02:"Fallo extractor de humos",A03:"Fin pellet / stop llama",A04:"Falta encendido",A11:"Intervención presostato de seguridad"};
 const PHASE_KEYWORDS = [...ALARM_WORDS.map(w => [w, "alarm"]), ["accensione","ignition"],["warmup","ignition"],
   ["potenza","heating"],["spegnimento","shutdown"],["raffredd","cooling"],["pulizia","cleaning"],["stand","standby"],["attesa","standby"],["spent","off"],["off","off"]];
-const ON_STATUSES = new Set([1,4,5,10,11,12,13,14,15]);
+const ON_STATUSES = new Set([1,2,3,4,5,10,11,12,13,14,15,43,46]);
 const PHASES = {
   off:{label:"Apagada",icon:"⏻",color:"--grey",lvl:0}, ignition:{label:"Encendiendo",icon:"🔥",color:"--warm",lvl:2},
   heating:{label:"Calentando",icon:"🔥",color:"--fire",lvl:3}, standby:{label:"En espera",icon:"⏸",color:"--cool",lvl:1},
-  shutdown:{label:"Apagándose",icon:"⤵",color:"--cool",lvl:1}, cooling:{label:"Enfriando",icon:"❄",color:"--cool",lvl:1}, cleaning:{label:"Limpieza",icon:"🧹",color:"--cool",lvl:1},
+  shutdown:{label:"Apagándose",icon:"⤵",color:"--cool",lvl:1}, cooling:{label:"Enfriando",icon:"❄",color:"--cool",lvl:1}, cleaning:{label:"Limpieza",icon:"🧹",color:"--warm",lvl:2},
   alarm:{label:"Alarma",icon:"⚠",color:"--bad",lvl:4}, unknown:{label:"Desconocida",icon:"?",color:"--grey",lvl:0},
 };
 function phase(d){
@@ -125,7 +126,7 @@ function phase(d){
   if (/\b[ae]\d{2}\b/.test(desc)) return "alarm";
   for (const [k,v] of PHASE_KEYWORDS) if (desc.includes(k)) return v;
   const c = Number(d?.status);
-  const byCode = {0:"off",10:"ignition",11:"heating",12:"heating",13:"heating",14:"heating",15:"heating",40:"shutdown",41:"cooling",46:"standby"};
+  const byCode = {0:"off",2:"ignition",3:"ignition",4:"ignition",5:"ignition",10:"ignition",11:"heating",12:"heating",13:"heating",14:"heating",15:"heating",40:"shutdown",41:"cooling",43:"cleaning",46:"standby"};
   if (c in byCode) return byCode[c];
   if (ON_STATUSES.has(c)) return "heating";
   return "unknown";
@@ -239,7 +240,7 @@ function renderAlert(){
   const ph = phase(latest);
   let kind = null, text = "";
   if (latest.online === false) { kind = "bad"; text = "La estufa no está conectada a la nube"; }
-  else if (ph === "alarm") { kind = "bad"; text = `🚨 Alarma: ${latest.statusDescription} (código ${latest.status})`; }
+  else if (ph === "alarm") { kind = "bad"; const m = String(latest.statusDescription ?? "").match(/\b([ae])(\d{2})\b/i); const ac = m ? m[1].toUpperCase()+m[2] : null; text = `🚨 Alarma: ${latest.statusDescription}${ac && ALARM_CODES[ac] ? " — " + ALARM_CODES[ac] : ""} (código ${latest.status})`; }
   else if (ph === "unknown") { kind = "warn"; text = `Estado nuevo sin clasificar: ${latest.statusDescription} (código ${latest.status})`; }
   box.hidden = !kind;
   document.title = kind ? `⚠ ${text}` : "Estufa EK63";

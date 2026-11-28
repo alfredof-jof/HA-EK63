@@ -23,7 +23,7 @@ Por cada estufa, un dispositivo con:
 | Última actualización en la nube | `sensor` | Diagnóstico (timestamp) |
 | Conectividad | `binary_sensor` | Diagnóstico. Si la estufa está offline, el resto pasa a *no disponible* |
 | Programación activa | `binary_sensor` | Cronotermostato de la estufa (`scheduling.active`) |
-| Alarma | `binary_sensor` (problema) | Encendido si la estufa está en alarma. Atributos `code`, `description` y `unknown_status` |
+| Alarma | `binary_sensor` (problema) | Encendido si la estufa está en alarma. Atributos `code`, `description`, `alarm_code`, `alarm_text` y `unknown_status` |
 
 ## Panel de seguimiento
 
@@ -31,25 +31,41 @@ Por cada estufa, un dispositivo con:
 
 ## Códigos observados
 
-Ciclo real del 27/11/2026 con consigna 20 °C y *standby* activado:
+Ciclos reales del 27 y 28/11/2026 con consigna 20 °C:
 
 | `status` | `statusDescription` | Fase | Notas |
 |---|---|---|---|
-| 0 | Stufa spenta | Apagada | Apagado manual desde Stand-by: inmediato |
-| 10 | accensione: WARMUP | Encendiendo | |
-| 11-14 | Potenza 1-4 | Calentando | Modula 3 → 4 → 3 → 2 → 1 al acercarse a la consigna |
-| 40 | Spegnimento | Apagándose | Al superar la consigna (20,6 °C). ~7 min |
-| 41 | Raffreddamento | Enfriando | ~17 min |
-| 46 | Stand-by | En espera | Volverá a arrancar sola al bajar la temperatura |
+| 0 | Stufa spenta | Apagada | Apagado manual desde Stand-by (inmediato), o fin del enfriamiento sin *standby* |
+| 2 | accensione: PULIZIA | Encendiendo | Limpieza del brasero al arrancar (~20-30 s) |
+| 3 | accensione: CARICO PELLET | Encendiendo | ~2 min. Desde Stand-by a veces arranca directamente aquí |
+| 4 | accensione: CONTROLLO INCREMENTO TEMPERATURA FUMI | Encendiendo | ~1-2 min |
+| 5 | accensione: CONTROLLO SUPERAMENTO SOGLIA | Encendiendo | ~2 min |
+| 10 | accensione: WARMUP | Encendiendo | ~5 min |
+| 11-15 | Potenza 1-5 | Calentando | Arranca en 3-5 y modula hacia 1 al acercarse a la consigna |
+| 40 | Spegnimento | Apagándose | Al superar la consigna o al apagar. ~7 min |
+| 41 | Raffreddamento | Enfriando | ~12-19 min |
+| 43 | Pulizia High | Limpieza | Limpieza periódica **en marcha** (~30 s) y vuelve a Potenza. Cuenta como encendida |
+| 46 | Stand-by | En espera | Con *standby* activado. Vuelve a arrancar sola al bajar la temperatura |
 
-Faltan la limpieza y las alarmas. Mientras no se vean, se detectan por texto: códigos tipo `A01`/`E12` y palabras como *allarme*, *errore*, *mancata accensione*, *sovratemperatura* o *pellet esaurito*. Cualquier código nuevo:
+### Alarmas
+
+Aún no se ha visto ninguna por la API. El histórico de la app muestra estas:
+
+| Código | Alarma |
+|---|---|
+| A02 | Fallo extractor de humos |
+| A03 | Fin pellet / stop llama |
+| A04 | Falta encendido |
+| A11 | Intervención presostato de seguridad |
+
+Se detectan por el patrón `A01`/`E12` en `statusDescription` y por palabras como *allarme*, *mancata accensione*, *pressostato*, *estrattore*, *fine pellet* o *sovratemperatura*. El sensor *Alarma* expone `alarm_code` (p. ej. `A03`) y `alarm_text` (texto de la tabla). Cualquier código nuevo:
 
 - sale como fase *Desconocida*;
 - se avisa una vez en el log de HA;
 - lanza el evento `smartek63_status_changed`;
 - en el panel del PC aparece un aviso, con notificación de escritorio si la activas.
 
-Comportamiento en HA: durante *Apagándose* y *Enfriando* el termostato aparece apagado (no hay llama) y **no se permite encender** hasta que termine. En *Stand-by* aparece encendido y en reposo. Un `online: false` aislado (se vio uno durante el enfriamiento) no deja las entidades como no disponibles: hacen falta 2 lecturas seguidas.
+Comportamiento en HA: durante *Apagándose* y *Enfriando* el termostato aparece apagado (no hay llama) y **no se permite encender** hasta que termine. En *Stand-by* aparece encendido y en reposo; en *Limpieza* (43), encendido y calentando. Un `online: false` aislado (pasa varias veces por hora, unos segundos) no deja las entidades como no disponibles: hacen falta 2 lecturas seguidas.
 
 Características:
 
@@ -179,7 +195,7 @@ actions:
       title: Estufa
       message: >
         {% if trigger.entity_id.endswith('conectividad') %}Sin conexión desde hace 10 min
-        {% else %}Alarma: {{ state_attr('binary_sensor.ek63_c7f790_alarma', 'description') }}
+        {% else %}Alarma: {{ state_attr('binary_sensor.ek63_c7f790_alarma', 'alarm_text') or state_attr('binary_sensor.ek63_c7f790_alarma', 'description') }}
         (código {{ state_attr('binary_sensor.ek63_c7f790_alarma', 'code') }}){% endif %}
 ```
 
