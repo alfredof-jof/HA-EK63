@@ -141,7 +141,7 @@ logger:
 
 ## Automatizaciones de ejemplo
 
-Sustituye `climate.salon_ek63_c7f790`, `sensor.ek63_*`, `binary_sensor.ek63_*` y `notify.mobile_app_mi_movil` por tus entidades.
+Los entity_id son los de una estufa "EK63-C7F790" en el área "Salón": cámbialos si los tuyos son distintos, y sustituye `notify.mobile_app_mi_movil` por tu móvil.
 
 **Aviso de helada:**
 
